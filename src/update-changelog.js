@@ -3,25 +3,23 @@
 const path = require('path');
 const crypto = require('crypto');
 const shell = require('shelljs');
+const exec = require('child_process').execSync;
 const exitHook = require('exit-hook');
 const semver = require('semver');
-const tempdir = path.join(shell.tempdir(), crypto.randomBytes(20).toString('hex'));
+const fs = require('fs');
+const getDefaults = require('./get-defaults.js');
+const conventionalCliPkg = require('conventional-changelog-cli/package.json');
+const conventionalCliPath = require.resolve(path.join('conventional-changelog-cli', conventionalCliPkg.bin['conventional-changelog']));
 
-const updateChangelog = function(options) {
-  const cwd = options.dir;
-  const pkg = require(path.join(cwd, 'package.json'));
-  const isPrerelease = semver.prerelease(pkg.version);
-
-  if (isPrerelease && !options.runOnPrerelease) {
-    console.log('Not updating changelog, this is as this is a prerelease.');
-    return;
-  }
-
-  // exit on first error
-  shell.set('-e');
+/**
+ * Move over to a temporary directory so that
+ * we can delete git tags without worrying about modifying
+ * local git changes.
+ */
+const createTempDir = function(cwd) {
+  const tempdir = path.join(shell.tempdir(), crypto.randomBytes(20).toString('hex'));
 
   exitHook(() => shell.rm('-rf', tempdir));
-  shell.cd(cwd);
   shell.mkdir('-p', tempdir);
 
   // copy .git, package.json, and package-lock.json
@@ -32,53 +30,112 @@ const updateChangelog = function(options) {
   // symlink node_modules
   shell.ln('-sf', path.join(cwd, 'node_modules'), path.join(tempdir, 'node_modules'));
 
-  // move to tempdir
-  shell.cd(tempdir);
+  // symlink CHANGELOG.md
+  shell.ln('-sf', path.join(cwd, 'CHANGELOG.md'), path.join(tempdir, 'CHANGELOG.md'));
+
+  return tempdir;
+};
+
+const getPkgAndErrorCheck = function(cwd) {
+  if (!cwd || !shell.test('-d', cwd)) {
+    return `Cannot run as directory '${cwd}' does not exist.`;
+  } else if (!shell.test('-d', path.join(cwd, '.git'))) {
+    return `Cannot run as .git directory does not exist in directory '${cwd}'.`;
+  } else if (!shell.test('-f', path.join(cwd, 'package.json'))) {
+    return `Cannot run as package.json does not exist in directory '${cwd}'.`;
+  } else if (!shell.test('-f', path.join(cwd, 'package-lock.json'))) {
+    return `Cannot run as package-lock.json does not exist in directory '${cwd}'.`;
+  }
+
+  try {
+    exec('git log', {cwd, stdio: 'ignore'});
+  } catch (e) {
+    return `There are no commits in the git repo for directory '${cwd}'.`;
+  }
+
+  let pkg;
+
+  try {
+    pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json')));
+  } catch (e) {
+    return `Could not read package.json in ${cwd}. It threw an error:\n${e.stack}`;
+  }
+
+  return pkg;
+};
+
+const updateChangelog = function(options = {}) {
+  options = Object.assign(getDefaults(), options);
+
+  let cwd = options.dir;
+  const pkg = getPkgAndErrorCheck(cwd);
+
+  // if pkg is a string and not an object, it is an error.
+  if (typeof pkg === 'string') {
+    return {
+      message: pkg,
+      exitCode: 1
+    };
+  }
+
+  const isPrerelease = semver.prerelease(pkg.version);
+
+  if (isPrerelease && !options.runOnPrerelease) {
+    return {
+      message: 'Not updating changelog. This is a prerelease and --run-on-prerelease not set.',
+      exitCode: 0
+    };
+  }
+
+  // exit on first error
+  shell.set('-e');
+
+  const tagResult = exec('git tag -l', {cwd});
+  const tagsToDelete = [];
+
+  tagResult.toString().trim().split(/\r?\n/).forEach(function(tag) {
+    // delete preleases tags of the current version
+    // so that we get all prerlease changes included in the current
+    // release.
+    if (tag && !semver.eq(tag, pkg.version) && semver.diff(pkg.version, tag) === 'prerelease') {
+      tagsToDelete.push(tag);
+    }
+  });
 
   // delete all prerelease tags to prevent prerelease CHANGELOG entries
   // unless asked not to.
-  if (!isPrerelease) {
-    const tagResult = shell.exec('git tag -l', {silent: true});
-    const tags = tagResult.stdout.split(/\r?\n/);
-
-    tags.forEach(function(tag) {
-      if (semver.prerelease(tag)) {
-        shell.exec(`git tag -d '${tag}'`, {silent: true});
-      }
+  if (!isPrerelease && tagsToDelete.length) {
+    cwd = createTempDir(cwd);
+    tagsToDelete.forEach(function(tag) {
+      exec(`git tag -d '${tag}'`, {cwd});
     });
   }
-
-  let command = 'npx conventional-changelog -p videojs';
-
-  if (!options.stdout) {
-    command += ' -i CHANGELOG.md -s';
+  if (!shell.test('-f', path.join(cwd, 'CHANGELOG.md'))) {
+    shell.touch(path.join(cwd, 'CHANGELOG.md'));
   }
 
-  // only regenerate the number of releases asked for.
-  if (typeof options.releaseCount === 'number') {
-    command += ` -r ${options.releaseCount}`;
+  let changelogUpdate = `${conventionalCliPath} -p videojs -r 2`;
+
+  if (!options.stdout) {
+    changelogUpdate += ' -i CHANGELOG.md -s';
   }
 
   // update the changelog
-  const changelogResult = shell.exec(command, {silent: true});
-
-  if (options.stdout) {
-    console.log(changelogResult.stdout);
-    return;
-  }
-
-  // copy over the updated changelog
-  shell.cp(path.join(tempdir, 'CHANGELOG.md'), path.join(cwd, 'CHANGELOG.md'));
+  exec(changelogUpdate, {cwd});
 
   let message = 'CHANGELOG.md updated';
 
   // add to git commit if asked for
   if (options.gitAdd) {
-    shell.exec('git add CHANGELOG.md', {silent: true});
+    // make sure to add the changelog in the original directory
+    // using options.dir;
+    exec('git add CHANGELOG.md', {cwd: options.dir});
     message += ' and added to commit';
   }
 
-  console.log(`${message}!`);
+  message += '!';
+
+  return {message, exitCode: 0};
 };
 
 module.exports = updateChangelog;
