@@ -17,7 +17,7 @@
     "test": "npm-run-all lint test:unit",
     "test:unit": "ava 'test/*.test.js' --timeout 1m",
     "preversion": "npm test",
-    "version": "node ./src/update-changelog --add",
+    "version": "node ./src/cli.js --add",
     "prepublishOnly": "vjsverify --skip-syntax --verbose"
   },
   "lint-staged": {
