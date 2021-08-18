@@ -1,6 +1,6 @@
 {
   "name": "@videojs/update-changelog",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A wrapper around conventional-changelog-cli to better support prereleases.",
   "bin": {
     "vjs-update-changelog": "src/cli.js",
