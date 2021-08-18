@@ -687,3 +687,43 @@ test('fails with invalid package.json', (t) => {
   t.true((/^Could not read package.json in/).test(result.message), 'expected message');
 });
 
+test('fails with invalid package version', (t) => {
+  t.context.commit('feat: initial');
+  const pkg = t.context.readPkg();
+
+  pkg.version = 'foo';
+
+  t.context.updatePkg(pkg);
+
+  const result = updateChangelog({
+    dir: t.context.dir
+  });
+
+  t.is(result.exitCode, 1, 'failure');
+  t.is(result.message, 'version in package.json foo is invalid!', 'expected message');
+});
+
+test('does not fail with invalid version tags', (t) => {
+  const hash = t.context.commit('feat: initial');
+
+  exec('git tag foo', {cwd: t.context.dir});
+  exec('git tag 3.0r1', {cwd: t.context.dir});
+  exec('git tag 3b', {cwd: t.context.dir});
+  exec('git tag 3.0b', {cwd: t.context.dir});
+
+  const result = updateChangelog({
+    dir: t.context.dir
+  });
+
+  t.is(result.exitCode, 0, 'success');
+  t.is(result.message, 'CHANGELOG.md updated!', 'expected message');
+
+  const changelog = []
+    .concat(getVersionHeader(t.context.readPkg().version))
+    .concat([
+      '### Features',
+      `* initial ${hash}`
+    ]);
+
+  t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog');
+});

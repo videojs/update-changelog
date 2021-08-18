@@ -61,6 +61,10 @@ const getPkgAndErrorCheck = function(cwd) {
     return `Could not read package.json in ${cwd}. It threw an error:\n${e.stack}`;
   }
 
+  if (!semver.valid(pkg.version)) {
+    return `version in package.json ${pkg.version} is invalid!`;
+  }
+
   return pkg;
 };
 
@@ -94,10 +98,16 @@ const updateChangelog = function(options = {}) {
   const tagsToDelete = [];
 
   tagResult.toString().trim().split(/\r?\n/).forEach(function(tag) {
-    // delete preleases tags of the current version
-    // so that we get all prerlease changes included in the current
-    // release.
-    if (tag && !semver.eq(tag, pkg.version) && semver.diff(pkg.version, tag) === 'prerelease') {
+    // skip if:
+    // tag is a falsy value
+    // tag is not a version tag
+    // tag is the current pkg version tag
+    if (!tag || !semver.valid(tag) || semver.eq(tag, pkg.version)) {
+      return;
+    }
+    // delete preleases tags of the current version so that
+    // we get all prerlease changes included in the current release.
+    if (semver.diff(pkg.version, tag) === 'prerelease') {
       tagsToDelete.push(tag);
     }
   });
