@@ -757,3 +757,48 @@ test('does not add commits twice', (t) => {
   t.is(result2.message, 'CHANGELOG.md not updated as it already has an entry for v0.0.0.', 'expected message');
   t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog');
 });
+
+test('does not duplicate releases for versions before tag creation', (t) => {
+  const hash = t.context.commit('feat: initial');
+
+  exec('npm version patch', {cwd: t.context.dir});
+
+  const result = updateChangelog({
+    dir: t.context.dir
+  });
+
+  t.is(result.exitCode, 0, 'success');
+  t.is(result.message, 'CHANGELOG.md updated!', 'expected message');
+
+  let changelog = []
+    .concat(getVersionHeader(t.context.readPkg().version, hash))
+    .concat([
+      '### Features',
+      `* initial ${hash}`
+    ]);
+
+  t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog');
+
+  const hash2 = t.context.commit('feat: second');
+  const pkg = t.context.readPkg();
+
+  pkg.version = '0.0.2';
+
+  t.context.updatePkg(pkg);
+
+  const result2 = updateChangelog({
+    dir: t.context.dir
+  });
+
+  changelog = []
+    .concat(getVersionHeader(t.context.readPkg().version, 'v0.0.1'))
+    .concat([
+      '### Features',
+      `* second ${hash2}`
+    ])
+    .concat(changelog);
+
+  t.is(result2.exitCode, 0, 'success 2');
+  t.is(result2.message, 'CHANGELOG.md updated!', 'expected message 2');
+  t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog 2');
+});

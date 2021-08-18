@@ -15,7 +15,7 @@
   "scripts": {
     "lint": "vjsstandard",
     "test": "npm-run-all lint test:unit",
-    "test:unit": "ava 'test/*.test.js' --timeout 1m",
+    "test:unit": "ava 'test/*.test.js' --timeout 2m",
     "preversion": "npm test",
     "version": "node ./src/cli.js --add",
     "prepublishOnly": "vjsverify --skip-syntax --verbose"

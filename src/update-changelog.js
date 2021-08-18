@@ -110,13 +110,21 @@ const updateChangelog = function(options = {}) {
 
   const tagResult = exec('git tag -l', {cwd});
   const tagsToDelete = [];
+  let releaseCount = 1;
 
   tagResult.toString().trim().split(/\r?\n/).forEach(function(tag) {
     // skip if:
     // tag is a falsy value
     // tag is not a version tag
-    // tag is the current pkg version tag
-    if (!tag || !semver.valid(tag) || semver.eq(tag, pkg.version)) {
+    if (!tag || !semver.valid(tag)) {
+      return;
+    }
+
+    // if the current version already has a tag
+    // we need to re-generate the changelog for two versions
+    // as any state after a tag has "unreleased changes"
+    if (semver.eq(tag, pkg.version)) {
+      releaseCount = 2;
       return;
     }
     // delete preleases tags of the current version so that
@@ -135,14 +143,7 @@ const updateChangelog = function(options = {}) {
     });
   }
 
-  let changelogUpdate = `${conventionalCliPath} -p videojs -r 2`;
-
-  if (!options.stdout) {
-    changelogUpdate += ' -i CHANGELOG.md -s';
-  }
-
-  // update the changelog
-  exec(changelogUpdate, {cwd});
+  exec(`${conventionalCliPath} -p videojs -i CHANGELOG.md -s -r ${releaseCount}`, {cwd});
 
   let message = 'CHANGELOG.md updated';
 
