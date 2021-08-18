@@ -727,3 +727,33 @@ test('does not fail with invalid version tags', (t) => {
 
   t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog');
 });
+
+test('does not add commits twice', (t) => {
+  const hash = t.context.commit('feat: initial');
+  const hash2 = t.context.commit('feat: foobar');
+
+  const result = updateChangelog({
+    dir: t.context.dir
+  });
+
+  t.is(result.exitCode, 0, 'success');
+  t.is(result.message, 'CHANGELOG.md updated!', 'expected message');
+
+  const changelog = []
+    .concat(getVersionHeader(t.context.readPkg().version))
+    .concat([
+      '### Features',
+      `* foobar ${hash2}`,
+      `* initial ${hash}`
+    ]);
+
+  t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog');
+
+  const result2 = updateChangelog({
+    dir: t.context.dir
+  });
+
+  t.is(result2.exitCode, 0, 'success');
+  t.is(result2.message, 'CHANGELOG.md not updated as it already has an entry for v0.0.0.', 'expected message');
+  t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog');
+});

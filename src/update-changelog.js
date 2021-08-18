@@ -91,6 +91,20 @@ const updateChangelog = function(options = {}) {
     };
   }
 
+  if (!shell.test('-f', path.join(cwd, 'CHANGELOG.md'))) {
+    shell.touch(path.join(cwd, 'CHANGELOG.md'));
+  } else {
+    const changelog = fs.readFileSync(path.join(cwd, 'CHANGELOG.md'), 'utf8');
+    const regex = RegExp(`<a name="${pkg.version}"></a>`);
+
+    if (regex.test(changelog)) {
+      return {
+        message: `CHANGELOG.md not updated as it already has an entry for v${pkg.version}.`,
+        exitCode: 0
+      };
+    }
+  }
+
   // exit on first error
   shell.set('-e');
 
@@ -119,9 +133,6 @@ const updateChangelog = function(options = {}) {
     tagsToDelete.forEach(function(tag) {
       exec(`git tag -d '${tag}'`, {cwd});
     });
-  }
-  if (!shell.test('-f', path.join(cwd, 'CHANGELOG.md'))) {
-    shell.touch(path.join(cwd, 'CHANGELOG.md'));
   }
 
   let changelogUpdate = `${conventionalCliPath} -p videojs -r 2`;
