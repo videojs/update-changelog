@@ -1,3 +1,10 @@
+<a name="0.0.4"></a>
+## [0.0.4](https://github.com/videojs/update-changelog/compare/v0.0.3...v0.0.4) (2021-08-19)
+
+### Bug Fixes
+
+* delete prereleases between the current and previous version only ([1ea7790](https://github.com/videojs/update-changelog/commit/1ea7790))
+
 <a name="0.0.3"></a>
 ## [0.0.3](https://github.com/videojs/update-changelog/compare/v0.0.2...v0.0.3) (2021-08-18)
 
