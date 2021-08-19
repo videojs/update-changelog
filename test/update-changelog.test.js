@@ -16,11 +16,6 @@ const year = today.getFullYear();
 const getVersionHeader = (version, hash) => {
   version = semver.clean(version);
   let versionLink = version;
-  let header = '##';
-
-  if (version === '0.0.0') {
-    header = '#';
-  }
 
   if (hash) {
     versionLink = `[${version}](/compare/${hash}...v${version})`;
@@ -28,7 +23,7 @@ const getVersionHeader = (version, hash) => {
 
   return [
     `<a name="${version}"></a>`,
-    `${header} ${versionLink} (${year}-${month}-${day})`
+    `${versionLink} (${year}-${month}-${day})`
   ];
 };
 
@@ -39,7 +34,8 @@ test.beforeEach((t) => {
     .readFileSync(path.join(t.context.dir, 'CHANGELOG.md'), 'utf8')
     .trim()
     .split(/\r?\n/)
-    .filter((v) => !!v.trim());
+    .map((v) => v.trim().replace(/^#+/, '').trim())
+    .filter((v) => !!v);
 
   t.context.commit = (msg) => {
     exec('git add --all', {cwd: t.context.dir});
@@ -82,7 +78,7 @@ test('works for regular changelog update', (t) => {
   const changelog = []
     .concat(getVersionHeader(t.context.readPkg().version))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -103,7 +99,7 @@ test('git add works', (t) => {
   const changelog = []
     .concat(getVersionHeader(t.context.readPkg().version))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -127,7 +123,7 @@ test('adds commits', (t) => {
   const changelog = []
     .concat(getVersionHeader(t.context.readPkg().version))
     .concat([
-      '### Features',
+      'Features',
       `* foobar ${hash2}`,
       `* initial ${hash}`
     ]);
@@ -153,7 +149,7 @@ test('works for release', (t) => {
   const changelog = []
     .concat(getVersionHeader(t.context.readPkg().version))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -177,7 +173,7 @@ test('works for prerelease with preid and runOnPrerelease', (t) => {
   const changelog = []
     .concat(getVersionHeader(t.context.readPkg().version))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -201,7 +197,7 @@ test('works for prerelease without preid and runOnPrerelease', (t) => {
   const changelog = []
     .concat(getVersionHeader(t.context.readPkg().version))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -239,7 +235,7 @@ test('add a new release', (t) => {
   let changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, hash))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -259,7 +255,7 @@ test('add a new release', (t) => {
   changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, 'v0.0.1'))
     .concat([
-      '### Features',
+      'Features',
       `* second ${second}`
     ])
     .concat(changelog);
@@ -278,7 +274,7 @@ test('add a new release', (t) => {
   changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, 'v0.0.1'))
     .concat([
-      '### Features',
+      'Features',
       `* second ${second}`
     ]);
 
@@ -300,7 +296,7 @@ test('truncate changelog to only get new release', (t) => {
   let changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, hash))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -320,7 +316,7 @@ test('truncate changelog to only get new release', (t) => {
   changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, 'v0.0.1'))
     .concat([
-      '### Features',
+      'Features',
       `* second ${second}`
     ])
     .concat(changelog);
@@ -339,14 +335,14 @@ test('truncate changelog to only get new release', (t) => {
   changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, 'v0.0.1'))
     .concat([
-      '### Features',
+      'Features',
       `* second ${second}`
     ]);
 
   t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog 3 ');
 });
 
-test('release after a prerelease includes prelease changes', (t) => {
+test('release after a prerelease includes prerelease changes', (t) => {
   const hash = t.context.commit('feat: initial');
 
   exec('npm version patch', {cwd: t.context.dir});
@@ -361,7 +357,7 @@ test('release after a prerelease includes prelease changes', (t) => {
   let changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, hash))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -410,9 +406,9 @@ test('release after a prerelease includes prelease changes', (t) => {
   changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, 'v0.0.1'))
     .concat([
-      '### Features',
+      'Features',
       `* second ${second}`,
-      '### Bug Fixes',
+      'Bug Fixes',
       `* third ${third}`
     ])
     .concat(changelog);
@@ -420,64 +416,66 @@ test('release after a prerelease includes prelease changes', (t) => {
   t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog 3');
 });
 
-test('release after a prerelease includes prelease changes and release changes', (t) => {
-  const hash = t.context.commit('feat: initial');
+['patch', 'minor', 'major'].forEach(function(versionType) {
+  test(`${versionType} release after a prerelease includes prelease changes and release changes`, (t) => {
+    const hash = t.context.commit('feat: initial');
 
-  exec('npm version patch', {cwd: t.context.dir});
+    exec('npm version patch', {cwd: t.context.dir});
 
-  const result = updateChangelog({
-    dir: t.context.dir
+    const result = updateChangelog({
+      dir: t.context.dir
+    });
+
+    t.is(result.exitCode, 0, 'success');
+    t.is(result.message, 'CHANGELOG.md updated!', 'expected message 1');
+
+    let changelog = []
+      .concat(getVersionHeader(t.context.readPkg().version, hash))
+      .concat([
+        'Features',
+        `* initial ${hash}`
+      ]);
+
+    t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog 1');
+
+    const second = t.context.commit('feat: second');
+
+    exec('npm version prerelease', {cwd: t.context.dir});
+
+    const result2 = updateChangelog({
+      dir: t.context.dir
+    });
+
+    t.is(result2.exitCode, 0, 'success');
+    t.is(
+      result2.message,
+      'Not updating changelog. This is a prerelease and --run-on-prerelease not set.',
+      'expected message'
+    );
+    t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog 2');
+
+    const third = t.context.commit('feat: third');
+
+    exec(`npm version ${versionType}`, {cwd: t.context.dir});
+
+    const result3 = updateChangelog({
+      dir: t.context.dir
+    });
+
+    t.is(result3.exitCode, 0, 'success');
+    t.is(result3.message, 'CHANGELOG.md updated!', 'expected message 3');
+
+    changelog = []
+      .concat(getVersionHeader(t.context.readPkg().version, 'v0.0.1'))
+      .concat([
+        'Features',
+        `* second ${second}`,
+        `* third ${third}`
+      ])
+      .concat(changelog);
+
+    t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog 3');
   });
-
-  t.is(result.exitCode, 0, 'success');
-  t.is(result.message, 'CHANGELOG.md updated!', 'expected message 1');
-
-  let changelog = []
-    .concat(getVersionHeader(t.context.readPkg().version, hash))
-    .concat([
-      '### Features',
-      `* initial ${hash}`
-    ]);
-
-  t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog 1');
-
-  const second = t.context.commit('feat: second');
-
-  exec('npm version prerelease', {cwd: t.context.dir});
-
-  const result2 = updateChangelog({
-    dir: t.context.dir
-  });
-
-  t.is(result2.exitCode, 0, 'success');
-  t.is(
-    result2.message,
-    'Not updating changelog. This is a prerelease and --run-on-prerelease not set.',
-    'expected message'
-  );
-  t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog 2');
-
-  const third = t.context.commit('feat: third');
-
-  exec('npm version patch', {cwd: t.context.dir});
-
-  const result3 = updateChangelog({
-    dir: t.context.dir
-  });
-
-  t.is(result3.exitCode, 0, 'success');
-  t.is(result3.message, 'CHANGELOG.md updated!', 'expected message 3');
-
-  changelog = []
-    .concat(getVersionHeader(t.context.readPkg().version, 'v0.0.1'))
-    .concat([
-      '### Features',
-      `* second ${second}`,
-      `* third ${third}`
-    ])
-    .concat(changelog);
-
-  t.deepEqual(t.context.getChangelog(), changelog, 'expected changelog 3');
 });
 
 test('can include prerelease and release in CHANGELOG.md', (t) => {
@@ -495,7 +493,7 @@ test('can include prerelease and release in CHANGELOG.md', (t) => {
   let changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, hash))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -516,7 +514,7 @@ test('can include prerelease and release in CHANGELOG.md', (t) => {
   changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, 'v0.0.1'))
     .concat([
-      '### Features',
+      'Features',
       `* second ${second}`
     ])
     .concat(changelog);
@@ -537,7 +535,7 @@ test('can include prerelease and release in CHANGELOG.md', (t) => {
   changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, 'v0.0.2-0'))
     .concat([
-      '### Bug Fixes',
+      'Bug Fixes',
       `* third ${third}`
     ])
     .concat(changelog);
@@ -557,10 +555,10 @@ test('can include prerelease and release in CHANGELOG.md', (t) => {
   changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, 'v0.0.1'))
     .concat([
-      '### Features',
+      'Features',
       `* forth ${forth}`,
       `* second ${second}`,
-      '### Bug Fixes',
+      'Bug Fixes',
       `* third ${third}`
     ])
     .concat(changelog);
@@ -583,7 +581,7 @@ test('Creates a CHANGELOG.md if it does not exist', (t) => {
   const changelog = []
     .concat(getVersionHeader(t.context.readPkg().version))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -605,7 +603,7 @@ test('success without node_modules', (t) => {
   const changelog = []
     .concat(getVersionHeader(t.context.readPkg().version))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -721,7 +719,7 @@ test('does not fail with invalid version tags', (t) => {
   const changelog = []
     .concat(getVersionHeader(t.context.readPkg().version))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -742,7 +740,7 @@ test('does not add commits twice', (t) => {
   const changelog = []
     .concat(getVersionHeader(t.context.readPkg().version))
     .concat([
-      '### Features',
+      'Features',
       `* foobar ${hash2}`,
       `* initial ${hash}`
     ]);
@@ -773,7 +771,7 @@ test('does not duplicate releases for versions before tag creation', (t) => {
   let changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, hash))
     .concat([
-      '### Features',
+      'Features',
       `* initial ${hash}`
     ]);
 
@@ -793,7 +791,7 @@ test('does not duplicate releases for versions before tag creation', (t) => {
   changelog = []
     .concat(getVersionHeader(t.context.readPkg().version, 'v0.0.1'))
     .concat([
-      '### Features',
+      'Features',
       `* second ${hash2}`
     ])
     .concat(changelog);

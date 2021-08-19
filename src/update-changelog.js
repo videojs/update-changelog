@@ -111,6 +111,8 @@ const updateChangelog = function(options = {}) {
   const tagResult = exec('git tag -l', {cwd});
   const tagsToDelete = [];
   let releaseCount = 1;
+  let previous = '0.0.0';
+  const tags = [];
 
   tagResult.toString().trim().split(/\r?\n/).forEach(function(tag) {
     // skip if:
@@ -127,9 +129,19 @@ const updateChangelog = function(options = {}) {
       releaseCount = 2;
       return;
     }
-    // delete preleases tags of the current version so that
-    // we get all prerlease changes included in the current release.
-    if (semver.diff(pkg.version, tag) === 'prerelease') {
+
+    if (!semver.prerelease(tag) && semver.gt(tag, previous)) {
+      previous = tag;
+    }
+
+    tags.push(tag);
+  });
+
+  tags.forEach(function(tag) {
+    // delete preleases tags of between the previous version and the
+    // current version so that we get all prerelease changes
+    // included in the current release.
+    if (semver.prerelease(tag) && semver.gt(tag, previous)) {
       tagsToDelete.push(tag);
     }
   });
@@ -138,9 +150,7 @@ const updateChangelog = function(options = {}) {
   // unless asked not to.
   if (!isPrerelease && tagsToDelete.length) {
     cwd = createTempDir(cwd);
-    tagsToDelete.forEach(function(tag) {
-      exec(`git tag -d '${tag}'`, {cwd});
-    });
+    exec(`git tag -d ${tagsToDelete.join(' ')}`, {cwd});
   }
 
   exec(`${conventionalCliPath} -p videojs -i CHANGELOG.md -s -r ${releaseCount}`, {cwd});
