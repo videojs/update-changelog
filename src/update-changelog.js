@@ -40,17 +40,15 @@ const getPkgAndErrorCheck = function(cwd) {
   if (!cwd || !shell.test('-d', cwd)) {
     return `Cannot run as directory '${cwd}' does not exist.`;
   } else if (!shell.test('-d', path.join(cwd, '.git'))) {
-    return `Cannot run as .git directory does not exist in directory '${cwd}'.`;
+    return 'Cannot run as .git directory does not exist.';
   } else if (!shell.test('-f', path.join(cwd, 'package.json'))) {
-    return `Cannot run as package.json does not exist in directory '${cwd}'.`;
-  } else if (!shell.test('-f', path.join(cwd, 'package-lock.json'))) {
-    return `Cannot run as package-lock.json does not exist in directory '${cwd}'.`;
+    return 'Cannot run as package.json does not exist.';
   }
 
   try {
     exec('git log', {cwd, stdio: 'ignore'});
   } catch (e) {
-    return `There are no commits in the git repo for directory '${cwd}'.`;
+    return 'There are no commits in the git repo.';
   }
 
   let pkg;
@@ -58,7 +56,7 @@ const getPkgAndErrorCheck = function(cwd) {
   try {
     pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json')));
   } catch (e) {
-    return `Could not read package.json in ${cwd}. It threw an error:\n${e.stack}`;
+    return `Could not read package.json. It threw an error:\n${e.stack}`;
   }
 
   if (!semver.valid(pkg.version)) {

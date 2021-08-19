@@ -37,6 +37,7 @@
     "shelljs": "^0.8.4"
   },
   "devDependencies": {
+    "@brandonocasey/spawn-promise": "^0.2.0",
     "@videojs/generator-helpers": "~3.0.1",
     "ava": "^3.15.0",
     "videojs-generator-verify": "^4.0.0",

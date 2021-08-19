@@ -50,7 +50,7 @@ if (require.main === module) {
   const result = updateChangelog(options);
 
   if (result.message) {
-    console.error(result.message);
+    console.log(result.message);
   }
 
   process.exit(result.exitCode);
